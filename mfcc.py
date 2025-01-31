@@ -3,7 +3,7 @@
 import numpy
 from scipy.fftpack import dct
 
-def mfccx(signal,samplerate=16000,winlen=0.025,winstep=0.01,numcep=13,
+def mfcc(signal,samplerate=16000,winlen=0.025,winstep=0.01,numcep=13,
          nfilt=26,nfft=None,lowfreq=0,highfreq=None,preemph=0.97,ceplifter=22,appendEnergy=True,
          winfunc=lambda x:numpy.ones((x,))):
     """Compute MFCC features from an audio signal.
@@ -23,7 +23,7 @@ def mfccx(signal,samplerate=16000,winlen=0.025,winstep=0.01,numcep=13,
     :param winfunc: the analysis window to apply to each frame. By default no window is applied. You can use numpy window functions here e.g. winfunc=numpy.hamming
     :returns: A numpy array of size (NUMFRAMES by numcep) containing features. Each row holds 1 feature vector.
     """
-    def mfcc(padsignal, frame_len, frame_step, nfft, fb, numcep, ceplifter, appendEnergy, winfunc):
+    def mfc(padsignal, frame_len, frame_step, nfft, fb, numcep, ceplifter, appendEnergy, winfunc):
         #Compute MFCC features from an audio signal.
         
         shape = padsignal.shape[:-1] + (padsignal.shape[-1] - frame_len + 1, frame_len)
@@ -89,4 +89,4 @@ def mfccx(signal,samplerate=16000,winlen=0.025,winstep=0.01,numcep=13,
     padsignal = numpy.append(padsignal[0], padsignal[1:] - preemph * padsignal[:-1])
     padsignal[slen] = 0
 
-    return mfcc(padsignal, frame_len, frame_step, nfft, fb, numcep, ceplifter, appendEnergy, winfunc)
+    return mfc(padsignal, frame_len, frame_step, nfft, fb, numcep, ceplifter, appendEnergy, winfunc)
