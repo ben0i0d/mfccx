@@ -23,6 +23,33 @@ def mfccx(signal,samplerate=16000,winlen=0.025,winstep=0.01,numcep=13,
     :param winfunc: the analysis window to apply to each frame. By default no window is applied. You can use numpy window functions here e.g. winfunc=numpy.hamming
     :returns: A numpy array of size (NUMFRAMES by numcep) containing features. Each row holds 1 feature vector.
     """
+    def mfcc(padsignal, frame_len, frame_step, nfft, fb, numcep, ceplifter, appendEnergy, winfunc):
+        #Compute MFCC features from an audio signal.
+        
+        shape = padsignal.shape[:-1] + (padsignal.shape[-1] - frame_len + 1, frame_len)
+        strides = padsignal.strides + (padsignal.strides[-1],)
+        frames = numpy.lib.stride_tricks.as_strided(padsignal, shape=shape, strides=strides)[::frame_step] * winfunc(frame_len)
+
+        if frames.shape[1] > nfft:
+            print('frame length {} is greater than FFT size {}, frame will be truncated. Increase NFFT to avoid.'.format(frames.shape[1], nfft))
+
+        pspec = 1.0 / nfft * numpy.square(numpy.absolute(numpy.fft.rfft(frames, nfft)))
+        energy = numpy.sum(pspec,1) # this stores the total energy in each frame
+        energy = numpy.where(energy == 0,numpy.finfo(float).eps,energy) # if energy is zero, we get problems with log
+
+        feat = numpy.dot(pspec,fb.T) # compute the filterbank energies
+        feat = numpy.where(feat == 0,numpy.finfo(float).eps,feat) # if feat is zero, we get problems with log
+
+        feat = numpy.log(feat)
+        feat = dct(feat, type=2, axis=1, norm='ortho')[:,:numcep]
+
+        if ceplifter > 0:
+            n = numpy.arange(feat.shape[1])
+            feat = (1 + (ceplifter/2.)*numpy.sin(numpy.pi*n/ceplifter)) * feat
+
+        if appendEnergy: feat[:,0] = numpy.log(energy) # replace first cepstral coefficient with log of frame energy
+        return feat
+    
     if not nfft:
         nfft = 1
         while nfft < winlen * samplerate:
@@ -63,30 +90,3 @@ def mfccx(signal,samplerate=16000,winlen=0.025,winstep=0.01,numcep=13,
     padsignal[slen] = 0
 
     return mfcc(padsignal, frame_len, frame_step, nfft, fb, numcep, ceplifter, appendEnergy, winfunc)
-
-def mfcc(padsignal, frame_len, frame_step, nfft, fb, numcep, ceplifter, appendEnergy, winfunc):
-    #Compute MFCC features from an audio signal.
-    
-    shape = padsignal.shape[:-1] + (padsignal.shape[-1] - frame_len + 1, frame_len)
-    strides = padsignal.strides + (padsignal.strides[-1],)
-    frames = numpy.lib.stride_tricks.as_strided(padsignal, shape=shape, strides=strides)[::frame_step] * winfunc(frame_len)
-
-    if frames.shape[1] > nfft:
-        print('frame length {} is greater than FFT size {}, frame will be truncated. Increase NFFT to avoid.'.format(frames.shape[1], nfft))
-
-    pspec = 1.0 / nfft * numpy.square(numpy.absolute(numpy.fft.rfft(frames, nfft)))
-    energy = numpy.sum(pspec,1) # this stores the total energy in each frame
-    energy = numpy.where(energy == 0,numpy.finfo(float).eps,energy) # if energy is zero, we get problems with log
-
-    feat = numpy.dot(pspec,fb.T) # compute the filterbank energies
-    feat = numpy.where(feat == 0,numpy.finfo(float).eps,feat) # if feat is zero, we get problems with log
-
-    feat = numpy.log(feat)
-    feat = dct(feat, type=2, axis=1, norm='ortho')[:,:numcep]
-
-    if ceplifter > 0:
-        n = numpy.arange(feat.shape[1])
-        feat = (1 + (ceplifter/2.)*numpy.sin(numpy.pi*n/ceplifter)) * feat
-
-    if appendEnergy: feat[:,0] = numpy.log(energy) # replace first cepstral coefficient with log of frame energy
-    return feat
